@@ -6,7 +6,15 @@ A second, independent consumer sits on the same interface: a small CLI (`tasklen
 
 ## Status
 
-Early development. `Core` (data model, `MarkdownVaultDataSource`) is built and self-checked. `Plugin` and `Cli` not started yet. Not yet installable.
+Early development. `Core` (data model, `MarkdownVaultDataSource`) and `Cli` are built and working. `Plugin` (PowerToys Run integration) not started yet. Not yet installable as a PowerToys plugin.
+
+```
+dotnet run --project Cli -- list --priority High
+dotnet run --project Cli -- search triton
+dotnet run --project Cli -- get <id>
+```
+
+Points at this vault's `Tasks.md` by default; override with `TASKLENS_TASKS_FILE` / `TASKLENS_VAULT_ROOT` / `TASKLENS_VAULT_NAME` env vars.
 
 ## Architecture
 
