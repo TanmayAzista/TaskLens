@@ -27,7 +27,7 @@ Three layers:
 - **`Plugin/`** — the PowerToys Run integration (`Wox.Plugin.IPlugin`), talks only to `ITaskDataSource`.
 - **`Cli/`** — a thin command-line consumer of the same interface, JSON output.
 
-See `WORKLOG.md` for build progress.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it actually works (parsing, the dual-write mirror-matching heuristic, PowerToys plugin specifics, known limits). See `WORKLOG.md` for build progress.
 
 ## Requirements
 

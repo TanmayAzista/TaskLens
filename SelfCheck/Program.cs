@@ -50,6 +50,33 @@ void Check(string name, bool condition)
     Check("source link is null when there's no citation", parsed?.SourceLinkTarget is null);
 }
 
+{
+    TaskLineParser.TryParse("- [ ] **Low** — pipe-aliased link ([[Real Note|Display Text]])", out var parsed, out _);
+    Check("pipe-aliased link extracts the target, not the alias", parsed?.SourceLinkTarget == "Real Note");
+}
+
+{
+    TaskLineParser.TryParse("- [ ] **Low** — multiple links ([[First]], [[Second]])", out var parsed, out _);
+    Check("first link in the citation wins when there are several", parsed?.SourceLinkTarget == "First");
+}
+
+{
+    var ok = TaskLineParser.TryParse("- [ ] **high** — lowercase priority marker", out var parsed, out var warning);
+    Check("rejects a lowercase priority marker rather than guessing", !ok);
+    Check("lowercase-priority line produces a warning", warning is not null);
+}
+
+// --- TaskSearch ---
+
+{
+    var task = new TaskItem("id", "widget catalog sync", Priority.Medium, "Demo", null);
+    Check("empty search term matches everything", TaskSearch.Matches(task, ""));
+    Check("matches on a project-name token", TaskSearch.Matches(task, "demo"));
+    Check("matches on a priority-name token", TaskSearch.Matches(task, "medium"));
+    Check("multi-word term requires every token to match", TaskSearch.Matches(task, "widget sync"));
+    Check("doesn't match an unrelated term", !TaskSearch.Matches(task, "triton"));
+}
+
 // --- MarkdownVaultDataSource, against a throwaway temp vault ---
 
 {
@@ -69,6 +96,7 @@ void Check(string name, bool condition)
             "## Demo",
             "- [ ] **Medium** — widget catalog sync drops entries on retry ([[Demo Project]])",
             "- [ ] **Low** — unrelated task with no mirror anywhere ([[Demo Project]])",
+            "- [x] **High** — already checked off, must not show up as a pending task",
         });
         File.WriteAllLines(sourcePath, new[]
         {
@@ -79,7 +107,7 @@ void Check(string name, bool condition)
         using var source = new MarkdownVaultDataSource(tasksPath, vaultRoot, "DemoVault");
 
         var tasks = source.GetTasks();
-        Check("reads both tasks", tasks.Count == 2);
+        Check("reads both pending tasks and ignores the already-checked line", tasks.Count == 2);
         Check("project comes from the ## heading", tasks.All(t => t.Project == "Demo"));
         Check("source URI resolves via obsidian://open", tasks.Count == 2 &&
             tasks[0].SourceNoteUri == "obsidian://open?vault=DemoVault&file=Demo%20Project");
