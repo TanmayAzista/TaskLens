@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="Cli/Cli.csproj" />
   <Project Path="Core/Core.csproj" />
+  <Project Path="Plugin/Plugin.csproj" />
   <Project Path="SelfCheck/SelfCheck.csproj" />
 </Solution>

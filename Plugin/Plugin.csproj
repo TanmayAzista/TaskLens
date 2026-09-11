@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Pinned to PowerToys 0.96.1's own Run-plugin runtime (confirmed via
+         Calculator's deps.json: ".NETCoreApp,Version=v9.0"). UseWPF because
+         Wox.Plugin's public API (Result.ToolTipVisibility, ContextMenuResult's
+         AcceleratorKey/Modifiers) is typed in terms of WPF's Key/ModifierKeys. -->
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>TaskLens.Plugin</RootNamespace>
+    <AssemblyName>TaskLens.Plugin</AssemblyName>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Private=false: PowerToys' own process already has Wox.Plugin loaded,
+         a second copy alongside our DLL would load as a distinct assembly
+         identity and break type matching across the plugin boundary. Calculator
+         (the reference plugin) doesn't ship its own copy either. -->
+    <Reference Include="Wox.Plugin">
+      <HintPath>C:\Users\Dell\AppData\Local\PowerToys\Wox.Plugin.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="plugin.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Images\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

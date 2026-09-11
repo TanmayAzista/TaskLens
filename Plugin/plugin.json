@@ -1,0 +1,14 @@
+{
+  "ID": "D3A714B7ED174C02972D0AC00FFD9DF0",
+  "ActionKeyword": "td",
+  "IsGlobal": false,
+  "Name": "TaskLens",
+  "Author": "TanmayAzista",
+  "Version": "0.1.0",
+  "Language": "csharp",
+  "Website": "https://github.com/TanmayAzista/TaskLens",
+  "ExecuteFileName": "TaskLens.Plugin.dll",
+  "IcoPathDark": "Images\\tasklens.dark.png",
+  "IcoPathLight": "Images\\tasklens.light.png",
+  "DynamicLoading": true
+}

@@ -1,7 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- net9.0 alongside net10.0 so Plugin/ (pinned to net9.0-windows, PowerToys
+         0.96.1's own Run-plugin runtime, per Calculator's deps.json) can reference
+         this library too, without forcing Cli/SelfCheck off the net10.0 SDK/runtime
+         already installed for local dev. -->
+    <TargetFrameworks>net10.0;net9.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>TaskLens.Core</RootNamespace>

@@ -6,7 +6,9 @@ A second, independent consumer sits on the same interface: a small CLI (`tasklen
 
 ## Status
 
-Early development. `Core` (data model, `MarkdownVaultDataSource`) and `Cli` are built and working. `Plugin` (PowerToys Run integration) not started yet. Not yet installable as a PowerToys plugin.
+Early development. `Core`, `Cli`, and `Plugin` all build and the write path is self-checked, but `Plugin` hasn't been exercised live inside PowerToys Run yet.
+
+To try it: build `Plugin/`, copy its output (`Plugin\bin\Debug\net9.0-windows\*`) into `%LOCALAPPDATA%\PowerToys\RunPlugins\TaskLens\`, then restart PowerToys. Default action keyword is `td`.
 
 ```
 dotnet run --project Cli -- list --priority High
