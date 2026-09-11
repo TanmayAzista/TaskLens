@@ -6,7 +6,7 @@ A second, independent consumer sits on the same interface: a small CLI (`tasklen
 
 ## Status
 
-Early development. Not yet installable.
+Early development. `Core` (data model, `MarkdownVaultDataSource`) is built and self-checked. `Plugin` and `Cli` not started yet. Not yet installable.
 
 ## Architecture
 
@@ -26,4 +26,7 @@ See `WORKLOG.md` for build progress.
 
 ## Building
 
-_Not yet documented — solution not scaffolded._
+```
+dotnet build
+dotnet run --project SelfCheck   # parser + dual-write self-check
+```
