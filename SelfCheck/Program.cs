@@ -59,41 +59,63 @@ void Check(string name, bool condition)
         var tasksPath = Path.Combine(vaultRoot, "Tasks.md");
         var sourcePath = Path.Combine(vaultRoot, "Demo Project.md");
 
+        // The source note's line is deliberately NOT a verbatim copy of Tasks.md's --
+        // a condensed summary vs. the fuller original, same pattern confirmed against
+        // the real vault (regression case for the exact-match bug the token-overlap
+        // rewrite fixes). A second, unrelated task line is present so a confident
+        // match has to actually pick the right one, not just the only one.
         File.WriteAllLines(tasksPath, new[]
         {
             "## Demo",
-            "- [ ] **Medium** — a demo task ([[Demo Project]])",
+            "- [ ] **Medium** — widget catalog sync drops entries on retry ([[Demo Project]])",
+            "- [ ] **Low** — unrelated task with no mirror anywhere ([[Demo Project]])",
         });
         File.WriteAllLines(sourcePath, new[]
         {
             "# Demo Project",
-            "- [ ] **Medium** — a demo task",
+            "- [ ] **Medium** — investigate why the widget catalog sync job drops entries whenever a retry happens mid-batch",
         });
 
         using var source = new MarkdownVaultDataSource(tasksPath, vaultRoot, "DemoVault");
 
         var tasks = source.GetTasks();
-        Check("reads exactly one task", tasks.Count == 1);
-        Check("project comes from the ## heading", tasks.Count == 1 && tasks[0].Project == "Demo");
-        Check("source URI resolves via obsidian://open", tasks.Count == 1 &&
+        Check("reads both tasks", tasks.Count == 2);
+        Check("project comes from the ## heading", tasks.All(t => t.Project == "Demo"));
+        Check("source URI resolves via obsidian://open", tasks.Count == 2 &&
             tasks[0].SourceNoteUri == "obsidian://open?vault=DemoVault&file=Demo%20Project");
 
-        if (tasks.Count == 1)
+        var syncTask = tasks.FirstOrDefault(t => t.Title.Contains("widget catalog sync"));
+        var unrelatedTask = tasks.FirstOrDefault(t => t.Title.Contains("unrelated task"));
+        Check("found the condensed task", syncTask is not null);
+        Check("found the unrelated task", unrelatedTask is not null);
+
+        if (syncTask is not null && unrelatedTask is not null)
         {
-            source.SetPriority(tasks[0].Id, Priority.High);
+            source.SetPriority(syncTask.Id, Priority.High);
             var afterSetPriority = File.ReadAllLines(tasksPath);
-            Check("priority updated in Tasks.md", afterSetPriority.Any(l => l.Contains("**High**") && l.Contains("a demo task")));
+            Check("priority updated in Tasks.md", afterSetPriority.Any(l => l.Contains("**High**") && l.Contains("widget catalog sync")));
             var mirroredAfterSet = File.ReadAllLines(sourcePath);
-            Check("priority mirrored to source note", mirroredAfterSet.Any(l => l.Contains("**High**") && l.Contains("a demo task")));
+            Check("condensed/fuller wording still finds and updates the right mirror line",
+                mirroredAfterSet.Any(l => l.Contains("**High**") && l.Contains("drops entries whenever a retry")));
+
+            // The unrelated task has no mirror in the source note at all -- must warn
+            // and leave Tasks.md's own edit intact, not guess and clobber a wrong line.
+            DataSourceMessage? warning = null;
+            source.Message += (_, m) => warning = m;
+            source.SetPriority(unrelatedTask.Id, Priority.High);
+            Check("no-match case still updates Tasks.md", File.ReadAllLines(tasksPath).Any(l => l.Contains("**High**") && l.Contains("unrelated task")));
+            Check("no-match case emits a warning instead of guessing", warning is { Severity: DataSourceMessage.Level.Warning });
+            Check("source note is untouched by the no-match case", File.ReadAllLines(sourcePath).Length == 2);
 
             var refreshed = source.GetTasks();
-            Check("re-read reflects the new priority", refreshed.Count == 1 && refreshed[0].Priority == Priority.High);
+            var refreshedSync = refreshed.First(t => t.Title.Contains("widget catalog sync"));
+            Check("re-read reflects the new priority", refreshedSync.Priority == Priority.High);
 
-            source.MarkDone(refreshed[0].Id);
+            source.MarkDone(refreshedSync.Id);
             var afterDone = source.GetTasks();
-            Check("MarkDone removes the task from Tasks.md", afterDone.Count == 0);
+            Check("MarkDone removes only the done task from Tasks.md", afterDone.Count == 1 && afterDone[0].Title.Contains("unrelated task"));
             var sourceAfterDone = File.ReadAllLines(sourcePath);
-            Check("MarkDone removes the mirrored line from the source note", !sourceAfterDone.Any(l => l.Contains("a demo task")));
+            Check("MarkDone removes the mirrored line from the source note", !sourceAfterDone.Any(l => l.Contains("widget catalog")));
         }
     }
     finally

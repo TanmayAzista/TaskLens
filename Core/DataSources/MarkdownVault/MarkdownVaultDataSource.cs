@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace TaskLens.Core.DataSources.MarkdownVault;
 
@@ -95,10 +96,15 @@ public sealed class MarkdownVaultDataSource : ITaskDataSource, IDisposable
         throw new ArgumentException($"unknown task id: {taskId}", nameof(taskId));
     }
 
-    // ponytail: matches the mirrored line in the source note by comparing description
-    // text with each file's own trailing citation stripped off (Tasks.md cites the
-    // project note; the project note doesn't self-cite, so the raw lines never match
-    // verbatim). Ambiguous only if a note mirrors two tasks with identical text.
+    // ponytail: matches the mirrored line in the source note by content-word overlap,
+    // not exact text -- confirmed against the real vault that Tasks.md entries are
+    // routinely condensed summaries of the source note's fuller line, not verbatim
+    // copies (citation-only differences were the wrong assumption). Requires a clear
+    // winner (no tie at the top score) and a minimum overlap; anything less confident
+    // degrades to "warn, leave the source note alone" rather than risk editing the
+    // wrong line. Good enough at this vault's scale; a stable per-task marker id
+    // would be exact, but that means rewriting every task line across the user's
+    // actual notes, which is a bigger call than this fix warrants on its own.
     private void MirrorToSourceNote(TaskRecord record, string? newTitle, Priority? priority, bool delete)
     {
         if (record.Parsed.SourceLinkTarget is not { } target)
@@ -108,9 +114,10 @@ public sealed class MarkdownVaultDataSource : ITaskDataSource, IDisposable
         if (sourceFile is null)
             return;
 
-        var ourCore = TaskLineParser.StripTrailingCitation(record.Parsed.Title);
+        var ourTokens = Tokenize(TaskLineParser.StripTrailingCitation(record.Parsed.Title));
         var lines = File.ReadAllLines(sourceFile);
 
+        var candidates = new List<(int Index, ParsedTaskLine Parsed, int Score)>();
         for (var i = 0; i < lines.Length; i++)
         {
             if (!lines[i].StartsWith("- [ ]"))
@@ -119,29 +126,55 @@ public sealed class MarkdownVaultDataSource : ITaskDataSource, IDisposable
             if (!TaskLineParser.TryParse(lines[i], out var parsed, out _))
                 continue;
 
-            if (TaskLineParser.StripTrailingCitation(parsed!.Title) != ourCore)
-                continue;
+            var candidateTokens = Tokenize(TaskLineParser.StripTrailingCitation(parsed!.Title));
+            var score = ourTokens.Count(candidateTokens.Contains);
+            candidates.Add((i, parsed, score));
+        }
 
-            var updated = new List<string>(lines);
-            if (delete)
-            {
-                updated.RemoveAt(i);
-            }
-            else
-            {
-                updated[i] = $"- [ ] **{priority}** — {parsed.Title}";
-            }
+        var ranked = candidates.OrderByDescending(c => c.Score).ToList();
+        var minOverlap = Math.Max(3, ourTokens.Count / 3);
+        var confident = ranked.Count > 0
+            && ranked[0].Score >= minOverlap
+            && ranked.Count(c => c.Score == ranked[0].Score) == 1;
 
-            File.WriteAllLines(sourceFile, updated);
+        if (!confident)
+        {
+            Message?.Invoke(this, new DataSourceMessage
+            {
+                Severity = DataSourceMessage.Level.Warning,
+                Text = $"no confident match for the mirrored line in {sourceFile} for task: {record.Parsed.Title}",
+            });
             return;
         }
 
-        Message?.Invoke(this, new DataSourceMessage
+        var best = ranked[0];
+        var updated = new List<string>(lines);
+        if (delete)
         {
-            Severity = DataSourceMessage.Level.Warning,
-            Text = $"no mirrored line found in {sourceFile} for task: {ourCore}",
-        });
+            updated.RemoveAt(best.Index);
+        }
+        else
+        {
+            updated[best.Index] = $"- [ ] **{priority}** — {best.Parsed.Title}";
+        }
+
+        File.WriteAllLines(sourceFile, updated);
     }
+
+    private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "the", "a", "an", "and", "or", "to", "of", "in", "on", "for", "is", "are",
+        "it", "its", "this", "that", "be", "as", "at", "by", "with", "not", "if",
+        "into", "from", "than", "then", "but", "so", "do", "does",
+    };
+
+    private static readonly Regex WordToken = new(@"[a-zA-Z0-9]+", RegexOptions.Compiled);
+
+    private static HashSet<string> Tokenize(string text) =>
+        WordToken.Matches(text)
+            .Select(m => m.Value.ToLowerInvariant())
+            .Where(t => t.Length > 1 && !StopWords.Contains(t))
+            .ToHashSet();
 
     // ponytail: linear scan of the vault per call — fine at a few hundred notes,
     // add a name->path index if this ever shows up on a profile.
