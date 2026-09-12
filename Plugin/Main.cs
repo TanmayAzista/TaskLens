@@ -13,6 +13,11 @@ public sealed class Main : IPlugin, IContextMenu, IDisposable
     private const string VaultRootPath = @"D:\2092_TanmayVerma\DOCS\Obsidian";
     private const string VaultName = "Obsidian";
 
+    // Required by PowerToys Run's loader (not part of IPlugin itself -- it's a
+    // reflection-based convention checked in PluginPair.cs before Init is ever
+    // called) and must match plugin.json's "ID" exactly.
+    public static string PluginID => "D3A714B7ED174C02972D0AC00FFD9DF0";
+
     private PluginInitContext? _context;
     private MarkdownVaultDataSource? _dataSource;
     private Query? _lastQuery;
