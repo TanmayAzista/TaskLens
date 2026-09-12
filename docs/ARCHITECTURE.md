@@ -128,6 +128,13 @@ runtime install, since the CLI never runs inside PowerToys' process.
   against "our" `Wox.Plugin` wouldn't satisfy an API expecting the
   host's). Confirmed this matches the real, installed Calculator plugin,
   which doesn't ship its own copy either.
+- **`Result.QueryTextDisplay` is always set to the current query
+  (`query.RawQuery`)**, not left unset. PowerToys Run's `PluginManager`
+  defaults an unset one to `Title`, and the search box gets overwritten
+  with it on every arrow-key navigation (`MainWindow.xaml.cs`) — with a
+  long task description as `Title`, that clobbered whatever the user had
+  actually typed. Setting it to the current query makes that overwrite
+  invisible.
 - **Sort order** comes from `Result.Score`, not application-side
   sorting logic — `ResultBuilder` encodes priority as a score
   (High=300/Medium=200/Low=100) and lets PowerToys Run's own

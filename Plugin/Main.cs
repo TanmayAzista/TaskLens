@@ -53,7 +53,7 @@ public sealed class Main : IPlugin, IContextMenu, IDisposable
             .ThenBy(t => t.Project, StringComparer.OrdinalIgnoreCase)
             .Select(task =>
             {
-                var result = ResultBuilder.Build(task);
+                var result = ResultBuilder.Build(task, query.RawQuery);
                 result.Action = ActionHandlers.BuildEnterAction(task);
                 return result;
             })
