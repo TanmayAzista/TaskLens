@@ -21,7 +21,8 @@ public static class ActionHandlers
         return true;
     };
 
-    public static List<ContextMenuResult> BuildContextMenu(Result result, ITaskDataSource dataSource, Action requery)
+    public static List<ContextMenuResult> BuildContextMenu(
+        Result result, ITaskDataSource dataSource, Func<bool> tryBeginMutation, Action requery, Action<string> notify)
     {
         if (result.ContextData is not TaskItem task)
             return [];
@@ -36,7 +37,11 @@ public static class ActionHandlers
                 AcceleratorModifiers = ModifierKeys.Control,
                 Action = _ =>
                 {
+                    if (!tryBeginMutation())
+                        return false;
+
                     dataSource.MarkDone(task.Id);
+                    notify($"Marked done: {task.Title}");
                     requery();
                     return false;
                 },
@@ -49,7 +54,12 @@ public static class ActionHandlers
                 AcceleratorModifiers = ModifierKeys.Control,
                 Action = _ =>
                 {
-                    dataSource.SetPriority(task.Id, NextPriority(task.Priority));
+                    if (!tryBeginMutation())
+                        return false;
+
+                    var next = NextPriority(task.Priority);
+                    dataSource.SetPriority(task.Id, next);
+                    notify($"Priority -> {next}: {task.Title}");
                     requery();
                     return false;
                 },

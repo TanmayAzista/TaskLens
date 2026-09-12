@@ -140,6 +140,21 @@ runtime install, since the CLI never runs inside PowerToys' process.
   results window open) and call `IPublicAPI.ChangeQuery` with the same
   query text to force a re-query against the now-changed data, rather
   than closing the window the way the default Enter action does.
+- **Every mutation calls `IPublicAPI.ShowNotification`** ("Marked done:
+  \<title\>", "Priority -> X: \<title\>") and is gated by a 500ms global
+  cooldown (`Main.TryBeginMutation`) — added after a real incident (see
+  WORKLOG, 2026-09-12) where repeated Ctrl+D presses silently deleted
+  several different tasks in a row, because each press correctly acted
+  on whatever was selected *at that instant*, but the list re-renders
+  after every delete and the user had no feedback showing what had just
+  happened. Confirmed via code review that a single press only ever
+  touches the one task its closure captured — not a fan-out bug, a
+  silent-and-repeatable one. The cooldown is separate defense against a
+  related but distinct gap found while investigating: PowerToys Run's
+  own `Launcher_KeyDown` (`MainWindow.xaml.cs`) has no `e.IsRepeat`
+  check, so a genuinely held key could otherwise cascade several rapid
+  mutations from one physical keypress — that's upstream PowerToys
+  behavior, not something fixable from a plugin.
 
 ## Testing
 
@@ -179,3 +194,8 @@ decided unilaterally mid-build.
   --project Cli` or load the plugin can read and (once mutation ships)
   write every task. Fine for a single-user dev box; not designed for
   anything beyond that.
+- **Mark-done still has no confirmation or undo**, just a notification
+  after the fact — deliberate for now (see the 2026-09-12 incident in
+  WORKLOG): the actual gap was silence, not the lack of a safety
+  prompt, and a bigger UX redesign wasn't asked for. Worth reconsidering
+  if a notification-plus-cooldown ever proves insufficient in practice.
